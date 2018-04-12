@@ -38,12 +38,12 @@ def main(argv=None):
         os.makedirs(user_path)
 
     try:
-        import cudamat as cmt
-        cmt.init()
+        from accelerate import cuda
+        cuda.cuda.select_device(0)
+        cuda.cuda.synchronize()
         HAVE_CUDA = True
     except Exception:
         HAVE_CUDA = False
-
 
     all_steps = ['whitening', 'clustering', 'fitting', 'gathering', 'extracting', 'filtering', 'converting', 'benchmarking', 'merging', 'validating']
 
@@ -269,7 +269,6 @@ but a subset x,y can be done. Steps are:
             use_gpu = 'True'
         else:
             use_gpu = 'False'
-
 
         time = data_stats(params)/60.
 

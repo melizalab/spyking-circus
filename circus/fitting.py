@@ -40,15 +40,17 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
     #################################################################
 
     if use_gpu:
-        import cudamat as cmt
+        from accelerate import cuda
+        from accelerate.cuda import sparse as cusparse
+
         ## Need to properly handle multi GPU per MPI nodes?
         if nb_gpu > nb_cpu:
             gpu_id = int(comm.rank//nb_cpu)
         else:
             gpu_id = 0
-        cmt.cuda_set_device(gpu_id)
-        cmt.init()
-        cmt.cuda_sync_threads()
+        cuda.cuda.select_device(gpu_id)
+        cuda.cuda.synchronize()
+        cuspObj = cusparse.Sparse()
 
     if SHARED_MEMORY:
         templates  = io.load_data_memshared(params, 'templates', normalize=True, transpose=True)
@@ -103,7 +105,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             neighbors[i] = numpy.where(numpy.sum(tmp, 1) != 0)[0]
 
     if use_gpu:
-        templates = cmt.SparseCUDAMatrix(templates, copy_on_host=False)
+        gpu_templates = cusparse.CudaCSRMatrix()
+        gpu_templates.from_host_matrix(templates)
 
     info_string   = ''
 
@@ -146,10 +149,13 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         temporal_whitening = io.load_data(params, 'temporal_whitening')
 
     if full_gpu:
+        gpu_c_overs = {}
         try:
             # If memory on the GPU is large enough, we load the overlaps onto it
             for i in xrange(N_over):
-                c_overs[i] = cmt.SparseCUDAMatrix(c_overs[i], copy_on_host=False)
+                gpu_c_overs[i] = cusparse.CudaCSRMatrix()
+                gpu_c_overs[i].from_host_matrix(c_overs[i])
+
         except Exception:
             if comm.rank == 0:
                 print_and_log(["Not enough memory on GPUs: GPUs are used for projection only"], 'info', logger)
@@ -176,8 +182,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         comm.Barrier()
 
 
-    if use_gpu and do_spatial_whitening:
-        spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
+    #if use_gpu and do_spatial_whitening:
+    #    spatial_whitening = cmt.CUDAMatrix(spatial_whitening, copy_on_host=False)
 
     last_chunk_size = 0
 
@@ -206,7 +212,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         len_chunk             = len(local_chunk)
 
         if do_spatial_whitening:
-            if use_gpu:
+            if False:#use_gpu:
                 local_chunk = cmt.CUDAMatrix(local_chunk, copy_on_host=False)
                 local_chunk = local_chunk.dot(spatial_whitening).asarray()
             else:
@@ -278,8 +284,7 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
         n_t             = len(local_peaktimes)
 
         if full_gpu:
-        #   all_indices = cmt.CUDAMatrix(all_indices)
-            tmp_gpu = cmt.CUDAMatrix(local_peaktimes.reshape((1, n_t)), copy_on_host=False)
+            tmp_gpu = cuda.cuda.to_device(local_peaktimes.reshape((1, n_t)))
 
 
         if n_t > 0:
@@ -303,8 +308,11 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             del local_chunk
 
             if use_gpu: 
-                sub_mat = cmt.CUDAMatrix(sub_mat, copy_on_host=False)
-                b       = cmt.sparse_dot(templates, sub_mat)
+                sub_mat = cuda.cuda.to_device(sub_mat)
+                b       = cuda.cuda.device_array((templates.shape[0], sub_mat.shape[1]), dtype = np.float32)
+                descr   = cuspObj.matdescr()
+                cuspObj.csrmm('N', gpu_templates.shape[0], sub_mat.shape[1], gpu_templates.shape[1], gpu_templates.nnz, 1.0, descr, 
+                    gpu_templates.data, gpu_templates.indptr, gpu_templates.indices, sub_mat, gpu_templates.shape[1], 0.0, b, gpu_templates.shape[0])
             else:
                 b       = templates.dot(sub_mat)                
 
@@ -314,10 +322,8 @@ def main(params, nb_cpu, nb_gpu, use_gpu):
             local_bounds = (temp_2_shift, len_chunk - temp_2_shift)
             all_spikes   = local_peaktimes + local_offset
 
-            # Because for GPU, slicing by columns is more efficient, we need to transpose b
-            #b           = b.transpose()
             if use_gpu and not full_gpu:
-                b = b.asarray()
+                b = b.copy_to_host()
 
             failure     = numpy.zeros(n_t, dtype=numpy.int32)
 
