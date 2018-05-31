@@ -150,9 +150,9 @@ class CircusParser(object):
             except Exception:
                 self.parser.set(section, name, value)
 
-        for key, value in kwargs.items():
+        for key, value in list(kwargs.items()):
             for section in self.__all_sections__:
-                if self.parser._sections[section].has_key(key):
+                if key in self.parser._sections[section]:
                     self.parser._sections[section][key] = value
 
 
@@ -174,7 +174,7 @@ class CircusParser(object):
                 print_and_log(["Probe has no group named %s for dead channels" %key], 'debug', logger)
 
         N_e = 0
-        for key in self.probe['channel_groups'].keys():
+        for key in list(self.probe['channel_groups'].keys()):
             N_e += len(self.probe['channel_groups'][key]['channels'])
 
         self.set('data', 'N_e', str(N_e))
@@ -199,7 +199,7 @@ class CircusParser(object):
             self.file_format = self.parser.get('data', 'file_format')
         except Exception:
             if comm.rank == 0:
-                for f in __supported_data_files__.keys():
+                for f in list(__supported_data_files__.keys()):
                     to_write += ['-- %s -- %s' %(f, __supported_data_files__[f].extension)]
 
                 to_write += ['', "To get more info on a given file format, see",
@@ -208,10 +208,10 @@ class CircusParser(object):
                 print_and_log(to_write, 'error', logger)
             sys.exit(0)
 
-        test = self.file_format.lower() in __supported_data_files__.keys()
+        test = self.file_format.lower() in list(__supported_data_files__.keys())
         if not test:
             if comm.rank == 0:
-                for f in __supported_data_files__.keys():
+                for f in list(__supported_data_files__.keys()):
                     to_write += ['-- %s -- %s' %(f, __supported_data_files__[f].extension)]
 
                 to_write += ['', "To get more info on a given file format, see",
@@ -367,7 +367,7 @@ class CircusParser(object):
               sys.exit(0)
 
         dispersion     = self.parser.get('clustering', 'dispersion').replace('(', '').replace(')', '').split(',')
-        dispersion     = map(float, dispersion)
+        dispersion     = list(map(float, dispersion))
         test =  (0 < dispersion[0]) and (0 < dispersion[1])
         if not test:
             if comm.rank == 0:
@@ -426,7 +426,7 @@ class CircusParser(object):
             self.set('detection', 'dist_peaks', str(self._N_t))
             self.set('detection', 'template_shift', str((self._N_t-1)//2))
 
-            if self.parser._sections['fitting'].has_key('chunk'):
+            if 'chunk' in self.parser._sections['fitting']:
                 self.parser.set('fitting', 'chunk_size', self.parser._sections['fitting']['chunk'])
 
             for section in ['data', 'whitening', 'fitting']:
@@ -471,7 +471,7 @@ class CircusParser(object):
         if params is None:
             params = {}
 
-        for key, value in self.parser._sections['data'].items():
+        for key, value in list(self.parser._sections['data'].items()):
             if key not in params:
                 params[key] = value
 
@@ -552,7 +552,7 @@ class CircusParser(object):
 
         has_been_changed = False
 
-        for count in xrange(section_area[0]+1, section_area[1]):
+        for count in range(section_area[0]+1, section_area[1]):
             if '=' in lines[count]:
                 key  = lines[count].split('=')[0].replace(' ', '')
                 if key == flag:

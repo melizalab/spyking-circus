@@ -72,7 +72,7 @@ def main(argv=None):
 
     data_file      = params.get_data_file()
     data_dtype     = data_file.data_dtype
-    if data_file.params.has_key('data_offset'):
+    if 'data_offset' in data_file.params:
         data_offset = data_file.data_offset
     else:
         data_offset = 0
@@ -121,7 +121,7 @@ def main(argv=None):
         gui_params['hp_filtered']    = True
 
         f = open(os.path.join(output_path, 'params.py'), 'w')
-        for key, value in gui_params.items():
+        for key, value in list(gui_params.items()):
             if key in ['dir_path', 'dat_path', 'dtype']:
                 f.write('%s = "%s"\n' %(key, value))
             else:

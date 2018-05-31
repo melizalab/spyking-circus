@@ -21,8 +21,8 @@ class OpenEphysFile(DataFile):
     is_writable    = True
 
     # constants
-    NUM_HEADER_BYTES   = 1024L
-    SAMPLES_PER_RECORD = 1024L
+    NUM_HEADER_BYTES   = 1024
+    SAMPLES_PER_RECORD = 1024
     RECORD_SIZE        = 8 + 2*2 + SAMPLES_PER_RECORD*2 + 10 # size of each continuous record in bytes
     OFFSET_PER_BLOCK   = ((8 + 2*2)/2, 10/2)
 
@@ -125,12 +125,12 @@ class OpenEphysFile(DataFile):
         data        = self._unscale_data_from_float32(data)
 
         self._open(mode='r+')
-        for i in xrange(self.nb_channels):
+        for i in range(self.nb_channels):
             self.data[i][data_slice] = data[:, i]
         self._close()
 
     def _open(self, mode='r'):
-        self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode) for i in xrange(self.nb_channels)]
+        self.data = [numpy.memmap(self.all_files[i], offset=self.data_offset, dtype=self.data_dtype, mode=mode) for i in range(self.nb_channels)]
         
     def _close(self):
         self.data = None

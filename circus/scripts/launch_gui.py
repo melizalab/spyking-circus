@@ -426,7 +426,7 @@ class LaunchGUI(QDialog):
 
         if self.ui.tabWidget.currentIndex() == 0:
             args = self.command_line_args()
-        elif self.ui.tabWidget.currentIndex() == 2:
+        elif self.ui.tabWidget.currentIndex() > 0:
             args = self.gui_command_line_args()
 
         self.update_result_tab()

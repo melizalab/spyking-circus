@@ -41,7 +41,7 @@ class ARFFile(H5File):
             count       = 0
             params      = self.get_description()
             my_file     = h5py.File(self.file_name, mode='r')
-            all_matches = [re.findall('\d+', u) for u in my_file.keys()]
+            all_matches = [re.findall('\d+', u) for u in list(my_file.keys())]
             all_streams = []
             for m in all_matches:
                 if len(m) > 0:
@@ -49,8 +49,8 @@ class ARFFile(H5File):
 
             idx = numpy.argsort(all_streams)
 
-            for i in xrange(len(all_streams)):
-                params['h5_key']  = my_file.keys()[idx[i]]
+            for i in range(len(all_streams)):
+                params['h5_key']  = list(my_file.keys())[idx[i]]
                 new_data          = type(self)(self.file_name, params)
                 sources          += [new_data]
                 to_write         += ['We found the datafile %s with t_start %d and duration %d' %(new_data.file_name, new_data.t_start, new_data.duration)]
@@ -60,7 +60,7 @@ class ARFFile(H5File):
             return sources
 
         elif stream_mode == 'multi-files':
-            return H5File.set_streams(stream_mode)
+            return H5File.set_streams(self,stream_mode)
 
     def _read_from_header(self):
 
@@ -69,16 +69,16 @@ class ARFFile(H5File):
         self.__check_valid_key__(self.h5_key)
         
         self.my_file            = h5py.File(self.file_name)
-        all_keys                = self.my_file.get(self.h5_key).keys()
+        all_keys                = list(self.my_file.get(self.h5_key).keys())
         channels, idx           = self._get_sorted_channels_(all_keys, self.channel_name)    
         self.channels           = channels
         self.indices            = idx
         key                     = self.h5_key + '/' + self.channels[0]
-        header['sampling_rate'] = dict(self.my_file.get(key).attrs.items())['sampling_rate']
+        header['sampling_rate'] = dict(list(self.my_file.get(key).attrs.items()))['sampling_rate']
         header['data_dtype']    = self.my_file.get(self._get_channel_key_(0)).dtype
         header['nb_channels']   = len(self.channels)
         self.compression        = self.my_file.get(self._get_channel_key_(0)).compression
-        self._t_start           = dict(self.my_file.get(self.h5_key).attrs.items())['timestamp'][0]
+        self._t_start           = dict(list(self.my_file.get(self.h5_key).attrs.items()))['timestamp'][0]
         
         self._check_compression()
         
@@ -107,7 +107,7 @@ class ARFFile(H5File):
         
         data  = self._unscale_data_from_float32(data)
 
-        for i in xrange(self.nb_channels):
+        for i in range(self.nb_channels):
             self.data[i][time:time+data.shape[0]] = data[:, i]
 
     def _open(self, mode='r'):
@@ -116,4 +116,4 @@ class ARFFile(H5File):
         else:
             self.my_file = h5py.File(self.file_name, mode=mode)
 
-        self.data = [self.my_file.get(self._get_channel_key_(i)) for i in xrange(self.nb_channels)]
+        self.data = [self.my_file.get(self._get_channel_key_(i)) for i in range(self.nb_channels)]
